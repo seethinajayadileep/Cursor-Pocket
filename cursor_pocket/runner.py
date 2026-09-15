@@ -19,6 +19,7 @@ from .desktop import (
     send_prompt,
 )
 from .jobs import Job, JobStore
+from .notify import notify_job
 from .parse import parse_stream_line
 
 AGENT_CANDIDATES = (
@@ -126,7 +127,7 @@ class Runner:
             {
                 "kind": "assistant",
                 "text": (
-                    f"Cursor desktop would answer here.\n\nPrompt:\n{job.prompt.strip()}\n\n"
+                    f"{'Cursor Cloud Agent' if job.mode == 'cloud' else 'Cursor desktop'} would answer here.\n\nPrompt:\n{job.prompt.strip()}\n\n"
                     "Demo only — no files were edited."
                 ),
             },
@@ -166,9 +167,12 @@ class Runner:
             self._finish(store, job, "canceled", error="Canceled from the phone")
             return
         copy_prompt(job.prompt)
-        send_prompt()
-        store.append(job.id, {"kind": "status", "text": "Sent to Cursor desktop — waiting for the reply and file fixes"})
-        store.mutate(job.id, lambda j: setattr(j, "session_id", f"desktop-{job.id}"))
+        cloud = job.mode == "cloud"
+        send_prompt(kind="cloud" if cloud else "agent", new_chat=not bool(job.follow_up_of))
+        where = "Cursor Cloud Agent" if cloud else "Cursor desktop"
+        sid = f"{'cloud' if cloud else 'desktop'}-{job.id}"
+        store.append(job.id, {"kind": "status", "text": f"Sent to {where} — waiting for the reply and file fixes"})
+        store.mutate(job.id, lambda j: setattr(j, "session_id", sid))
         if self.after_send_delay:
             time.sleep(self.after_send_delay)
         baseline_ax = read_cursor_text()
@@ -222,7 +226,7 @@ class Runner:
                         "kind": "result",
                         "text": result,
                         "error": False,
-                        "session_id": f"desktop-{job.id}",
+                        "session_id": sid,
                     },
                 )
                 self._finish(store, job, "done", result=result)
@@ -350,6 +354,12 @@ class Runner:
             j.events.append(payload)
 
         store.mutate(job.id, apply)
+        finished = store.get(job.id)
+        if finished:
+            try:
+                notify_job(finished)
+            except Exception:  # noqa: BLE001 — never fail a job because the banner could not show
+                pass
 
 
 def _desktop_result(ax_text: str, summary: dict) -> str:
