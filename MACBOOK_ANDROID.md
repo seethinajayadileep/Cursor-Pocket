@@ -16,11 +16,39 @@ MacBook (Cursor + your project)          Android phone
 
 Open your project in **Cursor desktop**. Leave that window open. Pocket clicks **Send** in this app; it does not use a separate hidden agent unless you pass `--cli`.
 
+**Which Cursor screen?** Both the file editor and the Agents chat are the same app (`Cursor.app`).
+
+- Phone **Agent**: local IDE box (**Cmd+I**).
+- Phone **Cloud**: opens **New Chat / Agents**, clicks the bottom prompt, pastes, and Send. That is the Cloud Agents thread (left sidebar, Cloud picker).
+
+Keep Cursor in front, Mac awake and unlocked. The Mac still needs internet for Cloud Agents.
+
 Example folder: `/Users/you/Projects/my-app`
 
-### 2. Accessibility (required)
+### 2. Accessibility permission (required)
 
-On the Mac: **System Settings → Privacy & Security → Accessibility**. Turn on **Terminal** (or **iTerm** / **Python**, whichever runs Pocket). Without this, the phone cannot click Send.
+macOS has **two** different Accessibility screens. Pocket needs the **permission** list, not Zoom / VoiceOver.
+
+**Do not** open the sidebar item **System Settings → Accessibility** (that is display and hearing features). There is no Terminal toggle there.
+
+**Do this instead:**
+
+1. Apple menu → **System Settings** (older Macs: **System Preferences**).
+2. In the search box at the top, type **Accessibility**.
+3. Choose **Privacy & Security → Accessibility** (or **Security & Privacy → Privacy → Accessibility** on older macOS).  
+   You should see a list of apps that can **control this Mac**, with on/off switches — not VoiceOver / Zoom.
+4. Click the **+** button. Add **Terminal** (`Applications → Utilities → Terminal`). If you use iTerm, add **iTerm**. If a dialog later asks for **Python**, turn that on too.
+5. Turn the switch **on**. You may need to enter your Mac password.
+
+Fastest way — paste this in Terminal; it jumps to the right pane:
+
+```bash
+open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+```
+
+If that opens Privacy & Security but not the list, scroll the right-hand page until you see **Accessibility** under permissions (same group as Camera, Microphone, Automation).
+
+Without this permission, the phone can still pair, but Cursor **Send will not be clicked**.
 
 ### 3. Python
 
@@ -99,12 +127,12 @@ With `--online` the URL is HTTPS, so Chrome can install it as a real standalone 
 
 1. Mac: open the project in **Cursor desktop**. Keep the Mac awake and unlocked.
 2. Mac: start Pocket. Leave it running.
-3. Phone: open Pocket, type the prompt, tap **Send to laptop**.
-4. Cursor on the Mac gets the text and Send is clicked. The phone shows **Cursor’s reply** and **what files it fixed**.
-5. You get a notification when it is **Finished** or **Failed**.
+3. Phone: open Pocket, type the prompt, pick **Agent** (local Cursor) or **Cloud** (Agents chat), tap **Send to laptop**.
+4. Cursor on the Mac gets the text and Send is clicked. The phone shows the reply and what files changed.
+5. You get a notification when it is **Finished** or **Failed**: phone banner (Enable notifications, or the Android APK for lock-screen alerts) and a Mac notification from Pocket.
 6. Back at the Mac, review the diff in Cursor.
 
-Desktop mode pastes into the Agent composer (Cmd+I). Use `--cli` if you want Ask/Plan through Cursor CLI instead.
+**Agent** pastes into the local composer (Cmd+I). **Cloud** opens the Agents chat, clicks the prompt box, and sends. Use `--cli` if you want Ask/Plan through Cursor CLI instead.
 
 ---
 
@@ -116,12 +144,14 @@ On the Mac terminal: **Ctrl+C**. The phone cannot send prompts until you start P
 
 ## First test (no real Cursor edits)
 
+`--demo` only checks that the phone can pair. **Cursor stays idle.** The phone will show **Finished** with fake text. That is expected.
+
 ```bash
-cd /path/to/cursor_repo
+cd /path/to/Cursor-Pocket
 python3 -m cursor_pocket --demo --pin 123456
 ```
 
-On the phone use PIN `123456`, send any text, wait for **Finished**. Nothing in your project is changed.
+On the phone use PIN `123456`, send any text, wait for **Finished**. Then **Ctrl+C** and start the real command from Part 2 (**no** `--demo`) if you want Cursor to actually run.
 
 ---
 
@@ -132,5 +162,5 @@ On the phone use PIN `123456`, send any text, wait for **Finished**. Nothing in 
 - Mac firewall blocked Python: System Settings → Network → Firewall → Options → allow Python.
 - Wrong project path: `--workspace` must be the folder Cursor has open.
 - `No Cursor desktop`: install Cursor, or pass `--demo` / `--cli`.
-- Send is not clicked: enable Accessibility for Terminal/Python.
-- Mac locked or asleep: unlock it; automation cannot click Send on the lock screen.
+- Send is not clicked: enable **Privacy & Security → Accessibility** for Terminal/Python (not the VoiceOver/Zoom Accessibility page). Paste `open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"` in Terminal.
+- Send goes to the wrong chat: on the phone pick **Cloud** for the Agents / Cloud prompt box, or **Agent** for the local Cmd+I composer. Leave Cursor in front.
