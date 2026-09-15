@@ -123,9 +123,18 @@ class Runner:
     def _run_demo(self, store: JobStore, job: Job, cancel: threading.Event | None) -> None:
         steps = [
             {"kind": "system", "text": f"Demo mode · {job.workspace_name}", "model": "demo"},
-            {"kind": "assistant", "text": "Got it. I'll pretend to work through this on the laptop.\n"},
+            {
+                "kind": "thinking",
+                "text": "Planning next moves — reading the workspace and shaping a reply.",
+            },
+            {"kind": "assistant", "text": "Got it. I'll work through this on the laptop.\n"},
             {"kind": "tool", "text": f"read started · {job.workspace}", "tool": "read", "subtype": "started"},
             {"kind": "tool", "text": "read done", "tool": "read", "subtype": "done"},
+            {
+                "kind": "thinking",
+                "text": "I'll build the reply from the prompt and the files that would change.",
+                "duration_ms": 5000,
+            },
             {
                 "kind": "assistant",
                 "text": (
@@ -188,7 +197,15 @@ class Runner:
             send_prompt(kind="agent", new_chat=not bool(job.follow_up_of))
             where = "Cursor desktop"
         sid = f"{'cloud' if cloud else 'desktop'}-{job.id}"
-        store.append(job.id, {"kind": "status", "text": f"Sent to {where} — waiting for the reply and file fixes"})
+        store.append(job.id, {"kind": "system", "text": f"Sent to {where}"})
+        store.append(
+            job.id,
+            {
+                "kind": "thinking",
+                "text": "Waiting for the agent to think and reply.",
+                "phase": "start",
+            },
+        )
         store.mutate(job.id, lambda j: setattr(j, "session_id", sid))
         if self.after_send_delay:
             time.sleep(self.after_send_delay)
@@ -213,6 +230,17 @@ class Runner:
                 self._finish(store, job, "done", result=result)
                 return
 
+            if not saw_activity:
+                elapsed_ms = int((now - started) * 1000)
+                store.append(
+                    job.id,
+                    {
+                        "kind": "thinking",
+                        "text": "Waiting for the agent to think and reply.",
+                        "duration_ms": elapsed_ms,
+                        "delta": False,
+                    },
+                )
             ax = read_cursor_text()
             if ax and ax != last_ax:
                 last_ax = ax
@@ -380,14 +408,14 @@ class Runner:
 
 
 def _desktop_result(ax_text: str, summary: dict) -> str:
-        parts = []
-        reply = (ax_text or "").strip()
-        if reply:
-            parts.append("Cursor desktop response:\n" + reply[-4000:])
-        fixed = str(summary.get("text") or "").strip()
-        if fixed:
-            parts.append(fixed)
-        return "\n\n".join(parts) or "Cursor ran the prompt in the desktop app."
+    parts = []
+    reply = (ax_text or "").strip()
+    if reply:
+        parts.append("Cursor desktop response:\n" + reply[-4000:])
+    fixed = str(summary.get("text") or "").strip()
+    if fixed:
+        parts.append(fixed)
+    return "\n\n".join(parts) or "Cursor ran the prompt in the desktop app."
 
 
 def _new_text(before: str, after: str) -> str:
