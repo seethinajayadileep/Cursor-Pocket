@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+uploads/
+.DS_Store
+.cursor-pocket/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/dist/
+*.iml
+.idea/
