@@ -17,6 +17,7 @@ from .desktop import (
     open_workspace,
     read_cursor_text,
     request_stop,
+    resolve_cloud_target,
     send_prompt,
 )
 from .jobs import Job, JobStore
@@ -179,8 +180,13 @@ class Runner:
             self._finish(store, job, "canceled", error="Canceled from the phone")
             return
         copy_prompt(job.prompt)
-        send_prompt(kind="cloud" if cloud else "agent", new_chat=not bool(job.follow_up_of))
-        where = "Cloud Agents Window" if cloud else "Cursor desktop"
+        if cloud:
+            target = resolve_cloud_target(getattr(job, "chat", "") or "", follow_up=bool(job.follow_up_of))
+            send_prompt(kind="cloud", new_chat=target == "new", chat=target)
+            where = f"Cloud Agents · {target}"
+        else:
+            send_prompt(kind="agent", new_chat=not bool(job.follow_up_of))
+            where = "Cursor desktop"
         sid = f"{'cloud' if cloud else 'desktop'}-{job.id}"
         store.append(job.id, {"kind": "status", "text": f"Sent to {where} — waiting for the reply and file fixes"})
         store.mutate(job.id, lambda j: setattr(j, "session_id", sid))
@@ -374,14 +380,14 @@ class Runner:
 
 
 def _desktop_result(ax_text: str, summary: dict) -> str:
-    parts = []
-    reply = (ax_text or "").strip()
-    if reply:
-        parts.append("Cursor desktop response:\n" + reply[-4000:])
-    fixed = str(summary.get("text") or "").strip()
-    if fixed:
-        parts.append(fixed)
-    return "\n\n".join(parts) or "Cursor ran the prompt in the desktop app."
+        parts = []
+        reply = (ax_text or "").strip()
+        if reply:
+            parts.append("Cursor desktop response:\n" + reply[-4000:])
+        fixed = str(summary.get("text") or "").strip()
+        if fixed:
+            parts.append(fixed)
+        return "\n\n".join(parts) or "Cursor ran the prompt in the desktop app."
 
 
 def _new_text(before: str, after: str) -> str:
