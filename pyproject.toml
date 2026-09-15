@@ -1,10 +1,10 @@
 [project]
 name = "cursor-pocket"
-version = "0.3.0"
-description = "Android remote for Cursor desktop on your Mac."
-readme = "README.md"
+version = "0.3.2"
+description = "Phone remote for Cursor CLI: LAN or internet (--online)."
+readme = "CURSOR_POCKET.md"
 requires-python = ">=3.10"
-license = { file = "LICENSE" }
+license = { file = "cursor_pocket/LICENSE" }
 
 [project.scripts]
 cursor-pocket = "cursor_pocket.__main__:main"

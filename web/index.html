@@ -8,8 +8,8 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <title>Cursor Pocket</title>
   <link rel="manifest" href="/manifest.webmanifest" />
-  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="/icons/icon.svg" />
+  <link rel="icon" href="/icons/icon-192.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
@@ -18,7 +18,7 @@
       <header class="hero">
         <p class="eyebrow">Phone remote</p>
         <h1>Cursor Pocket</h1>
-        <p class="lede">Type a prompt here. It is pasted into <strong>Cursor on the Mac</strong> and Send is clicked. This app shows Cursor’s reply and what files it fixed, then notifies you when it is done.</p>
+        <p class="lede">Type a prompt here. <strong>Agent</strong> pastes into the local Cursor composer (Cmd+I). <strong>Cloud</strong> opens the Agents chat, clicks the prompt box, and sends. This app shows the reply and what files changed, then notifies you when it is done.</p>
       </header>
       <form id="pair-form" class="card">
         <label for="pin">Laptop PIN</label>
@@ -33,7 +33,7 @@
         <summary>How to connect</summary>
         <ol>
           <li>On the Mac: open your project in <strong>Cursor</strong>, then run <code>python3 -m cursor_pocket --workspace ~/your-project</code></li>
-          <li>Allow Accessibility for Terminal in macOS Settings (so Pocket can click Send).</li>
+          <li>Allow Terminal under <strong>System Settings → Privacy &amp; Security → Accessibility</strong> (the app-permission list, not Zoom/VoiceOver), so Pocket can click Send.</li>
           <li>Same Wi-Fi: open the LAN URL. Away from home: use <code>--online</code>.</li>
           <li>Type the 6-digit PIN once.</li>
         </ol>
@@ -62,11 +62,16 @@
           <select id="workspace"></select>
           <div class="pills" role="radiogroup" aria-label="Mode">
             <label><input type="radio" name="mode" value="agent" checked /> Agent</label>
+            <label><input type="radio" name="mode" value="cloud" /> Cloud</label>
             <label><input type="radio" name="mode" value="ask" /> Ask</label>
             <label><input type="radio" name="mode" value="plan" /> Plan</label>
           </div>
         </div>
         <button type="submit" id="send-btn">Send to laptop</button>
+        <p id="notify-row" class="hint">
+          <button type="button" id="notify-btn" class="ghost">Enable notifications</button>
+          <span id="notify-status"></span>
+        </p>
       </form>
 
       <section id="active" class="job" hidden>
