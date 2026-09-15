@@ -20,7 +20,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from cursor_pocket.auth import Auth
-from cursor_pocket.desktop import DesktopError, cloud_script, desktop_available, send_prompt
+from cursor_pocket.desktop import DesktopError, agent_script, cloud_script, desktop_available, send_prompt
 from cursor_pocket.jobs import JobStore
 from cursor_pocket.runner import Runner, _desktop_result
 from cursor_pocket.server import PocketState, serve
@@ -76,6 +76,7 @@ class FakeCursorDesktop:
                 (self.workspace / "a.txt").write_text("hello from pocket\n", encoding="utf-8")
             else:
                 (self.workspace / "b.txt").write_text("follow-up fix\n", encoding="utf-8")
+            return self._baseline + "I'll update a.txt"
         return (
             self._baseline
             + "I'll update a.txt so the tests pass.\n"
@@ -93,7 +94,7 @@ class DesktopE2ETests(unittest.TestCase):
         self.runner = Runner(
             demo=False,
             target="desktop",
-            idle_seconds=0.0,
+            idle_seconds=0.06,
             poll_seconds=0.02,
             open_delay=0.0,
             after_send_delay=0.0,
@@ -222,6 +223,7 @@ class DesktopE2ETests(unittest.TestCase):
         self.assertEqual(job["status"], "done")
         self.assertEqual(self.fake.send_count, 1)
         self.assertEqual(self.fake.sends[0]["kwargs"].get("kind"), "agent")
+        self.assertTrue(self.fake.sends[0]["kwargs"].get("new_chat"))
         self.assertEqual(self.fake.copied, ["fix a.txt so the tests pass"])
         self.assertEqual(self.fake.opened, [str(self.root)])
         self.assertTrue(job["session_id"].startswith("desktop-"))
@@ -236,8 +238,9 @@ class DesktopE2ETests(unittest.TestCase):
         self.assertEqual(kinds[-1], "status")
         self.assertEqual(job["events"][-1]["text"], "Finished")
 
-        assistant = next(event["text"] for event in job["events"] if event.get("kind") == "assistant")
+        assistant = "".join(event["text"] for event in job["events"] if event.get("kind") == "assistant")
         self.assertIn("I'll update a.txt", assistant)
+        self.assertGreaterEqual(sum(1 for event in job["events"] if event.get("kind") == "assistant"), 2)
         changes = next(event["text"] for event in job["events"] if event.get("kind") == "changes")
         self.assertIn("a.txt", changes)
 
@@ -266,6 +269,8 @@ class DesktopE2ETests(unittest.TestCase):
         self.assertEqual(follow_job["status"], "done")
         self.assertEqual(follow_job["follow_up_of"], job_id)
         self.assertEqual(self.fake.send_count, 2)
+        self.assertFalse(self.fake.sends[-1]["kwargs"].get("new_chat"))
+        self.assertEqual(self.fake.opened, [str(self.root)])
         self.assertIn("b.txt", follow_job["result"])
         self.assertTrue((self.root / "b.txt").exists())
 
@@ -377,11 +382,29 @@ class DesktopGuardsTests(unittest.TestCase):
         self.assertIn("Mobile offline Cursor control", named)
         self.assertNotIn("New Chat", named)
 
+    def test_agent_follow_up_stays_in_open_chat(self) -> None:
+        first = agent_script(new_chat=True)
+        self.assertIn('keystroke "i" using {command down}', first)
+        follow = agent_script(new_chat=False)
+        self.assertNotIn('keystroke "i" using {command down}', follow)
+        self.assertIn('keystroke "v" using {command down}', follow)
+        self.assertIn("key code 36", follow)
+
     def test_desktop_result_joins_reply_and_files(self) -> None:
         text = _desktop_result("hello from Cursor", {"text": "Files Cursor changed:\n  • a.txt"})
         self.assertIn("Cursor desktop response", text)
         self.assertIn("hello from Cursor", text)
         self.assertIn("a.txt", text)
+
+    def test_live_chunks_and_thinking_markers(self) -> None:
+        from cursor_pocket.runner import _live_chunks, _looks_like_thinking
+
+        parts = _live_chunks("Cursor desktop would answer here with a longer streamed reply.", size=24)
+        self.assertGreater(len(parts), 1)
+        self.assertEqual("".join(parts), "Cursor desktop would answer here with a longer streamed reply.")
+        self.assertTrue(_looks_like_thinking("Thought 5s"))
+        self.assertTrue(_looks_like_thinking("Planning next moves"))
+        self.assertFalse(_looks_like_thinking("I'll update a.txt so the tests pass."))
 
 
 if __name__ == "__main__":
